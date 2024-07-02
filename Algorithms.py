@@ -95,12 +95,22 @@ class UCSAgent(Agent):
             node, _ = self.open.popitem()
             self.close.add(node.state)
 
+            if self.env.is_final_state(node.state):
+                return self.solution(node)
+            
             for child in self.expand(node):
                 if child.state not in self.close and child.state not in [n.state for n in self.open]:
-                    if self.env.is_final_state(child.state):
-                        return self.solution(child)
                     self.open[child] = (child.g,child.state)
+                elif child.state in [n.state for n in self.open]:
+                    for n in self.open:
+                        if n.state == child.state:
+                            if child.g < n.g:
+                                del self.open[n]
+                                self.open[child] = (child.g,child.state)
 
+        return None
+                                
+                            
 
 class WeightedAStarAgent():
     
