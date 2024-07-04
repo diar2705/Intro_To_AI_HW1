@@ -111,22 +111,108 @@ class UCSAgent(Agent):
         return None
                                 
                             
+class WNode(Node):
+    def __int__(self, state, parent=None, action=0, cost=0, terminated=False, h=0, f=0):
+        super().__init__(state, parent=parent, action=action, cost=cost, terminated=terminated)
+        self.h = h
+        self.f = f
 
-class WeightedAStarAgent():
+
+
+class WeightedAStarAgent(Agent):
+
+    def __init__(self):
+        super().__init__()
+
+    def h(self, state):
+        curr_row, curr_col = self.env.to_row_col(state)
+        goal_cor = [self.env.to_row_col(state) for state in self.env.get_goal_states()]
+        manhattan = [abs(curr_row - goal_row) + abs(curr_col - goal_col) for goal_row, goal_col in goal_cor]
+        return min(manhattan + [100])
+
+    def f(self, node : WNode):
+        if self.weight == 1:
+            return node
+        return self.weight * node.h + (1 - self.weight) * node.g
+
+    def search(self, env: CampusEnv, h_weight=0.5) -> Tuple[List[int], float, int]:
+        self.weight = h_weight
+        self.init_search(env)
+
+        node: Node = Node(self.env.get_initial_state())
+
+        self.open: heapdict = heapdict.heapdict()
+
+        if self.env.is_final_state(node.state):
+            return self.solution(node)
+
+        self.open[node] = (node.g, node.state)
+
+        while len(self.open) > 0:
+            node, _ = self.open.popitem()
+            self.close.add(node)
+
+            if self.env.is_final_state(node.state):
+                return self.solution(node)
+
+            for child in self.expand(node):
+                if child not in self.close and child.state not in [n.state for n in self.open]:
+                    self.open[child] = (child.g, child.state)
+                elif child.state in [n.state for n in self.open]:
+                    for n in self.open:
+                        if n.state == child.state:
+                            if child.g < n.g:
+                                del self.open[n]
+                                self.open[child] = (child.g, child.state)
+
+                else:
+                    for n in self.close:
+                        if n.state == child.state:
+                            if child.g < n.g:
+                                self.close.remove(n)
+                                self.open[child] = (child.g, child.state)
+
+        return None
+
+
+
+
+class AStarAgent(WeightedAStarAgent):
     
     def __init__(self):
-        raise NotImplementedError
-
-    def search(self, env: CampusEnv, h_weight) -> Tuple[List[int], float, int]:
-        raise NotImplementedError   
-
-
-
-class AStarAgent():
-    
-    def __init__(self):
-        raise NotImplementedError
+        super().__init__()
 
     def search(self, env: CampusEnv) -> Tuple[List[int], float, int]:
-        raise NotImplementedError 
+        return super().search(env)
 
+
+
+def main():
+    MAPS = {
+        "4x4": ["SFFF",
+                "FHFH",
+                "FFFH",
+                "HFFG"],
+        "8x8": ["SFFFFFFF",
+                "FFFFFTAL",
+                "TFFHFFTF",
+                "FPFFFHTF",
+                "FAFHFPFF",
+                "FHHFFFHF",
+                "FHTFHFTL",
+                "FLFHFFFG"],
+    }
+    env = CampusEnv(MAPS["8x8"])
+    state = env.reset()
+    print('Initial state:', state)
+    print('Goal states:', env.get_goal_states())
+
+    WAstar_agent = WeightedAStarAgent()
+    actions, total_cost, expanded = WAstar_agent.search(env, h_weight=0.5)
+
+    print(f"Actions: {actions}")
+    print(f"Total cost: {total_cost}")
+    print(f"Expanded nodes: {expanded}")
+
+if __name__ == "__main__":
+    main()
